@@ -1,0 +1,26 @@
+{
+  "name": "color-gravity",
+  "version": "1.0.0",
+  "description": "Image manipulation where similar colors gravitate toward each other",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/patcoston/color-gravity.git"
+  },
+  "keywords": [
+    "image",
+    "manipulation",
+    "color",
+    "gravity",
+    "node"
+  ],
+  "author": "Patrick Coston",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/patcoston/color-gravity/issues"
+  },
+  "homepage": "https://github.com/patcoston/color-gravity#readme"
+}
