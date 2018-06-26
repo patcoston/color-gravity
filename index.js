@@ -1,8 +1,9 @@
 let Jimp = require('jimp');
- 
+
 Jimp.read('input.png', function (err, image) {
-    if (err) throw err;
-    let width = image.bitmap.width
+    if (err)
+        throw err;
+    let width = image.bitmap.width;
     let height = image.bitmap.height;
     // create 2D array for image
     let img = new Array(width);
@@ -28,7 +29,7 @@ Jimp.read('input.png', function (err, image) {
                 pix.vectors[n++] = {
                     x: x,
                     y: y,
-                }
+                };
             }
         }
         pix.vectorCount = n;
@@ -54,13 +55,13 @@ Jimp.read('input.png', function (err, image) {
             distToCenter: 0,
             vectors: new Array(8),
             vectorCount: 0,
-        }
+        };
         getPixVectors(pix[pixNum]);
         pixNum++;
     });
     let gen = 0;
     let generations = 10;
-    while(gen < generations) {
+    while (gen < generations) {
         image.scan(0, 0, width, height, function (x, y, idx) {
             // x, y is the position of this pixel on the image
             // idx is the position start position of this rgba tuple in the bitmap Buffer
