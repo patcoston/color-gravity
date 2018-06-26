@@ -22,5 +22,8 @@
   "bugs": {
     "url": "https://github.com/patcoston/color-gravity/issues"
   },
-  "homepage": "https://github.com/patcoston/color-gravity#readme"
+  "homepage": "https://github.com/patcoston/color-gravity#readme",
+  "dependencies": {
+    "jimp": "^0.2.28"
+  }
 }
