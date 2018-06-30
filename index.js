@@ -26,51 +26,10 @@ Jimp.read('a.png', function (err, image) {
     if (err) {
         throw err;
     }
-    let generations = 1000;
-    let size = 4; // 1 2 4 8 16 32 64 128 256
-    let blocks = 256 / size; // per Red, Green or Blue
-    let colorGroup = new Array(blocks * blocks * blocks);
-    let width = image.bitmap.width;
-    let height = image.bitmap.height;
-    // create 2D array for image
-    let img = new Array(width);
-    for (let i = 0; i < width; i++) {
-        img[i] = new Array(height);
-    }
-    // console.log('Init colorGroup array ' + colorGroup.length);
-    for (let i = 0; i < colorGroup.length; i++) {
-        colorGroup[i] = {
-            center: { x: 0, y: 0 },
-            pixIndex: []
-        };
-    }
-    // vector match - define which vectors can swap pix
-    let vectorMatch = new Array(8);
-    for (i = 0; i < 8; i++) {
-        vectorMatch[i] = [ false, false, false, false, false, false, false, false ];
-    }
-    vectorMatch[0][4] = true; // N-S
-    vectorMatch[1][5] = true; // NW-SE
-    vectorMatch[2][6] = true; // W-E
-    vectorMatch[3][7] = true; // SW-NE
-    vectorMatch[4][0] = true; // S-N
-    vectorMatch[5][1] = true; // SE-NW
-    vectorMatch[6][2] = true; // E-W
-    vectorMatch[7][3] = true; // NE-SW
-    let pix = new Array(width * height); // pixels
-    let pixOrder = new Array(width * height); // pixel order
-    // directions for vectors
-    let dir = [
-        { x:  0, y: -1 }, // N
-        { x:  1, y: -1 }, // NW
-        { x:  1, y:  0 }, // W
-        { x:  1, y:  1 }, // SW
-        { x:  0, y:  1 }, // S
-        { x: -1, y:  1 }, // SE
-        { x: -1, y:  0 }, // E
-        { x: -1, y: -1 }, // NE
-    ];
     function getPixVectors(pix) {
+        if (pix.vectorMax < 8) {
+            pix.vectorMax++;
+        }
         pix.vectors = []; // reset vector array
         for (let v = 0; v < 8; v++) {
             let x = pix.x + dir[v].x;
@@ -87,18 +46,55 @@ Jimp.read('a.png', function (err, image) {
                 });
             }
         }
-        // vectorMax can be less than vector length but not vice-versa.
-        // vectorMax can be equal to vector length.
-        // maximum vectors is 8, 1 for each of the 8 directions.
-        if (pix.vectorMax < 8) {
-            // if pixel is in corner or on edge, then it's length could be less than vectorMax
-            if (pix.vectors.length < pix.vectorMax) {
-                pix.vectorMax = pix.vectors.length // set vectorMax to actual vector length
-            } else if (pix.vectors.length > pix.vectorMax) { // if there are more vectors than vectorMax
-                pix.vectorMax++; // increase vectorMax by 1.  vector length may be greater than vector length.
-            }
-        }
     }
+    // SETTINGS
+    let generations = 500;
+    let size = 2; // 1 2 4 8 16 32 64 128 256
+    let blocks = 256 / size; // per Red, Green or Blue
+    // SETUP: colorGroup[] width and height
+    let colorGroup = new Array(blocks * blocks * blocks);
+    let width = image.bitmap.width;
+    let height = image.bitmap.height;
+    // SETUP: 2D array for image
+    let img = new Array(width);
+    for (let i = 0; i < width; i++) {
+        img[i] = new Array(height);
+    }
+    // console.log('Init colorGroup array ' + colorGroup.length);
+    // SETUP: colorGroup[]
+    for (let i = 0; i < colorGroup.length; i++) {
+        colorGroup[i] = {
+            center: { x: 0, y: 0 },
+            pixIndex: []
+        };
+    }
+    // SETUP: vector match - define which vectors can swap pix
+    let vectorMatch = new Array(8);
+    for (i = 0; i < 8; i++) {
+        vectorMatch[i] = [ false, false, false, false, false, false, false, false ];
+    }
+    vectorMatch[0][4] = true; // N-S
+    vectorMatch[1][5] = true; // NW-SE
+    vectorMatch[2][6] = true; // W-E
+    vectorMatch[3][7] = true; // SW-NE
+    vectorMatch[4][0] = true; // S-N
+    vectorMatch[5][1] = true; // SE-NW
+    vectorMatch[6][2] = true; // E-W
+    vectorMatch[7][3] = true; // NE-SW
+    let pix = new Array(width * height); // pixels
+    let pixOrder = new Array(width * height); // pixel order
+    // SETUP: directions for vectors
+    let dir = [
+        { x:  0, y: -1 }, // N
+        { x:  1, y: -1 }, // NW
+        { x:  1, y:  0 }, // W
+        { x:  1, y:  1 }, // SW
+        { x:  0, y:  1 }, // S
+        { x: -1, y:  1 }, // SE
+        { x: -1, y:  0 }, // E
+        { x: -1, y: -1 }, // NE
+    ];
+    // Setup arrays img[][] and pix[] and colorGroup[].pixIndex[]
     let pixNum = 0;
     image.scan(0, 0, width, height, function (x, y, idx) {
         let R = this.bitmap.data[idx];
@@ -125,6 +121,7 @@ Jimp.read('a.png', function (err, image) {
         colorGroup[group].pixIndex.push(pixNum);
         pixNum++;
     });
+    // Iterate the generations
     let gen = 1;
     while (gen <= generations) {
         console.log('GENERATION: ' + gen);
@@ -140,11 +137,18 @@ Jimp.read('a.png', function (err, image) {
                     let p = pix[n];
                     x += p.x;
                     y += p.y;
+                    // DEBUG
+                    /*
+                    if (i === 16256) {
+                        console.log('pix[' + n + '] x y = ' + x + ' ' + y);
+                    }
+                    */
                 }
                 colorGroup[i].center = {
                     x: Math.round(x / count),
                     y: Math.round(y / count),
                 }
+                // console.log('colorGroup[' + i + '].center{' + colorGroup[i].center.x + ' ' + colorGroup[i].center.y + '}');
             }
         }
         // console.log('Calc distance to color group center for each vector then sort by distance');
@@ -160,8 +164,8 @@ Jimp.read('a.png', function (err, image) {
                 for (let i = 0; i < v.length; i++) {
                     let x1 = v[i].x;
                     let y1 = v[i].y;
-                    let x2 = g.centerX;
-                    let y2 = g.centerY;
+                    let x2 = g.center.x;
+                    let y2 = g.center.y;
                     let x = x1 - x2;
                     let y = y1 - y2;
                     let d = Math.sqrt(x * x + y * y);
@@ -192,7 +196,9 @@ Jimp.read('a.png', function (err, image) {
             if (!p1.swapped) {
                 let v1 = p1.vectors;
                 swapped = false;
-                for (let j = 0; (j < p1.vectorMax) && (!p1.swapped); j++) {
+                // vector length can be less than vectorMax if pixel is in corner or on edge
+                let c1 = v1.length <= p1.vectorMax ? v1.length : p1.vectorMax;
+                for (let j = 0; (j < c1) && (!p1.swapped); j++) {
                     let x2 = v1[j].x;
                     let y2 = v1[j].y;
                     let n2 = img[x2][y2];
@@ -201,7 +207,9 @@ Jimp.read('a.png', function (err, image) {
                     if (!p2.swapped) {
                         let d1 = v1[j].dir; // dir of vector 1
                         let v2 = p2.vectors;
-                        for (let k = 0; (k < p2.vectorMax) && (!p2.swapped); k++) {
+                        // vector length can be less than vectorMax if pixel is in corner or on edge
+                        let c2 = v2.length <= p2.vectorMax ? v2.length : p2.vectorMax;
+                        for (let k = 0; (k < c2) && (!p2.swapped); k++) {
                             let d2 = v2[k].dir; // dir of vector 2
                             if (vectorMatch[d1][d2]) { // if vector 1 and 2 match
                                 let x1 = p1.x;
@@ -209,6 +217,10 @@ Jimp.read('a.png', function (err, image) {
                                 let tmp = img[x1][y1];
                                 img[x1][y1] = img[x2][y2];
                                 img[x2][y2] = tmp;
+                                p1.x = x2;
+                                p1.y = y2;
+                                p2.x = x1;
+                                p2.y = y1;
                                 p1.swapped = true;
                                 p2.swapped = true;
                                 p1.vectorMax = 0;
@@ -231,6 +243,15 @@ Jimp.read('a.png', function (err, image) {
                 let B = p.B;
                 let A = p.A;
                 let hex = Jimp.rgbaToInt(R, G, B, A);
+                image.setPixelColor(hex, x, y);
+            }
+        }
+        // DEBUG: Show color group center with black pixels
+        for (let i = 0; i < colorGroup.length; i++) {
+            if (colorGroup[i].pixIndex.length > 0) {
+                let x = colorGroup[i].center.x;
+                let y = colorGroup[i].center.y;
+                let hex = Jimp.rgbaToInt(0, 0, 0, 255);
                 image.setPixelColor(hex, x, y);
             }
         }
