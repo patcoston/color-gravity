@@ -16,12 +16,12 @@ Jimp.read('a.png', function (err, image) {
     console.log('Init colorGroup array ' + colorGroup.length);
     for (let i = 0; i < colorGroup.length; i++) {
         colorGroup[i] = {
-            center: { R: 0, G: 0, B: 0 },
+            center: { x: 0, y: 0 },
             pixIndex: []
         };
     }
-    let pix = new Array(width * height);
-    let n = 0;
+    let pix = new Array(width * height); // pixels
+    let pixOrder = new Array(width * height); // pixel order
     let dir = [
         { x:  0, y: -1 }, // N
         { x:  1, y: -1 }, // NW
@@ -33,23 +33,21 @@ Jimp.read('a.png', function (err, image) {
         { x: -1, y: -1 }, // NE
     ];
     function getPixVectors(pix) {
-        let n = 0;
         for (let v = 0; v < 8; v++) {
             let x = pix.x + dir[v].x;
             let y = pix.y + dir[v].y;
             if ((x >= 0) && (y >= 0) && (x < width) && (y < height)) {
-                pix.vectors[n++] = {
+                pix.vectors.push({
                     x: x,
                     y: y,
-                };
+                    dir: v, // direction: 0=N 1=NW 2=W 3=SW 4=S 5=SE 6=E 7=NE
+                    distToCenter: 0,
+                });
             }
         }
-        pix.vectorCount = n;
     }
     let pixNum = 0;
     image.scan(0, 0, width, height, function (x, y, idx) {
-        // x, y is the position of this pixel on the image
-        // idx is the position start position of this rgba tuple in the bitmap Buffer
         let R = this.bitmap.data[idx];
         let G = this.bitmap.data[idx + 1];
         let B = this.bitmap.data[idx + 2];
@@ -67,9 +65,7 @@ Jimp.read('a.png', function (err, image) {
             x: x,
             y: y,
             swapped: false,
-            distToCenter: 0,
-            vectors: new Array(8),
-            vectorCount: 0,
+            vectors: [],
             group: group,
         };
         colorGroup[group].pixIndex.push(pixNum);
@@ -78,34 +74,63 @@ Jimp.read('a.png', function (err, image) {
     let gen = 0;
     let generations = 5;
     while (gen < generations) {
+        console.log('GENERATION: ' + gen);
+        console.log('Calc center of each color group');
         // Calculate center of each color group
         for (let i = 0; i < colorGroup.length; i++) {
             if (colorGroup[i].pixIndex.length > 0) {
-                let R = 0;
-                let G = 0;
-                let B = 0;
+                let x = 0;
+                let y = 0;
                 let count = colorGroup[i].pixIndex.length;
                 for (let j = 0; j < count; j++) {
                     let n = colorGroup[i].pixIndex[j];
                     let p = pix[n];
-                    R += p.R;
-                    G += p.G;
-                    B += p.B;
+                    x += p.x;
+                    y += p.y;
                 }
                 colorGroup[i].center = {
-                    R: Math.round(R / count),
-                    G: Math.round(G / count),
-                    B: Math.round(B / count),
+                    x: Math.round(x / count),
+                    y: Math.round(y / count),
                 }
             }
         }
-        // TODO: Calculate distance to each vector then sort by distance
+        console.log('Calc distance to color group center for each vector then sort by distance');
+        // Calculate distance to color group center for each vector then sort by distance
         image.scan(0, 0, width, height, function (x, y, idx) {
             let n = img[x][y];
             let p = pix[n];
             getPixVectors(pix[n]);
-
+            let g = colorGroup[p.group];
+            let v = p.vectors;
+            for (let i = 0; i < v.length; i++) {
+                let x1 = v[i].x;
+                let y1 = v[i].y;
+                let x2 = g.centerX;
+                let y2 = g.centerY;
+                let x = x1 - x2;
+                let y = y1 - y2;
+                let d = Math.sqrt(x * x + y * y);
+                v[i].distToCenter = d;
+            }
+            v.sort(function(a, b) { // sort by distToCenter ascending
+                return a.distToCenter - b.distToCenter;
+            });
         });
+        console.log('Randomize order of pixels');
+        // Randomize order of pixels
+        for (let i = 0; i < pix.length; i++) {
+            pixOrder[i] = {
+                pixIndex: i,
+                order: Math.random(),
+            };
+        }
+        pixOrder.sort(function(a, b) {
+            return a.order - b.order;
+        });
+        console.log('Find vector matches and swap pixels');
+        // TODO: Find vector matches and swap pixels
+        console.log('Output image with swapped pixels');
+        // TODO: Output image with swapped pixels
         image.scan(0, 0, width, height, function (x, y, idx) {
             let n = img[x][y];
             let p = pix[n];
