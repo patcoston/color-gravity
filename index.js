@@ -1,5 +1,27 @@
 let Jimp = require('jimp');
 
+// img[][] - 2D array of number. Indexes into array pix[]
+// pix[] - 1D array of object for each pixel
+// - R G B A - Red Green Blue Opacity
+// - x y - location in image.  Use for indexes into array img[][]
+// - swapped - has the pixel been swapped with another pixel?
+// - group - index into array colorGroup[]
+// - vectors[] - 1D array of object, for each vector
+//   - x y - location of pixel in that vector direction. Use for indexes into array img[][]
+//   - dir - direction. Index into array dir[]
+//   - distToCenter - distance from x y to the pix colorGroup[group] centerX centerY. Array is sorted by this value.
+// - vectorMax - maximum number of vectors. Init to 0. Incremented by 1 each generation. Max value 8, for the 8 directions (see array dir[])
+// dir[] - 1D array of object.
+// - x y - offsets to the 8 directions: 0=N 1=NW 2=W 3=SW 4=S 5=SE 6=E 7=NE
+// vectorMatch[][] - 2D array of boolean.  Indexes are 0-7, the 8 directions. True if two vectors are opposite directions for example N and S, false otherwise.
+// pixOrder[] - 2D array of object.  Indexes into pix[] array.  Used to randomize order of array pix[].
+// - pixIndex - index into array pix[]
+// - order - random number used for sorting
+// colorGroup - 1D array of object. Used to define the color groups.
+// - center - object
+//   - x y - center of color group
+// - pixIndex[] - 1D array of numbers. Indexes into array pix[]. List of pixels in this color group.
+
 Jimp.read('a.png', function (err, image) {
     if (err) {
         throw err;
@@ -53,6 +75,9 @@ Jimp.read('a.png', function (err, image) {
         for (let v = 0; v < 8; v++) {
             let x = pix.x + dir[v].x;
             let y = pix.y + dir[v].y;
+            // check for boundary
+            // if pixel is in corner, there can only be 3 vectors
+            // if pixel is on edge, there can only be 5 vectors
             if ((x >= 0) && (y >= 0) && (x < width) && (y < height)) {
                 pix.vectors.push({
                     x: x,
@@ -60,6 +85,17 @@ Jimp.read('a.png', function (err, image) {
                     dir: v, // direction: 0=N 1=NW 2=W 3=SW 4=S 5=SE 6=E 7=NE
                     distToCenter: 0,
                 });
+            }
+        }
+        // vectorMax can be less than vector length but not vice-versa.
+        // vectorMax can be equal to vector length.
+        // maximum vectors is 8, 1 for each of the 8 directions.
+        if (pix.vectorMax < 8) {
+            // if pixel is in corner or on edge, then it's length could be less than vectorMax
+            if (pix.vectors.length < pix.vectorMax) {
+                pix.vectorMax = pix.vectors.length // set vectorMax to actual vector length
+            } else if (pix.vectors.length > pix.vectorMax) { // if there are more vectors than vectorMax
+                pix.vectorMax++; // increase vectorMax by 1.  vector length may be greater than vector length.
             }
         }
     }
@@ -81,15 +117,16 @@ Jimp.read('a.png', function (err, image) {
             A: A,
             x: x,
             y: y,
-            swapped: false,
+            swapped: false, // has this pixel been swapped?
             vectors: [],
-            group: group,
+            vectorMax: 0, // most vectors allowed
+            group: group, // index into array colorGroup[]
         };
         colorGroup[group].pixIndex.push(pixNum);
         pixNum++;
     });
-    let gen = 0;
-    while (gen < generations) {
+    let gen = 1;
+    while (gen <= generations) {
         console.log('GENERATION: ' + gen);
         // console.log('Calc center of each color group');
         // Calculate center of each color group
@@ -154,7 +191,8 @@ Jimp.read('a.png', function (err, image) {
             // if pixel 1 has not been swapped yet
             if (!p1.swapped) {
                 let v1 = p1.vectors;
-                for (let j = 0; j < v1.length; j++) {
+                swapped = false;
+                for (let j = 0; (j < p1.vectorMax) && (!p1.swapped); j++) {
                     let x2 = v1[j].x;
                     let y2 = v1[j].y;
                     let n2 = img[x2][y2];
@@ -163,7 +201,7 @@ Jimp.read('a.png', function (err, image) {
                     if (!p2.swapped) {
                         let d1 = v1[j].dir; // dir of vector 1
                         let v2 = p2.vectors;
-                        for (let k = 0; k < v2.length; k++) {
+                        for (let k = 0; (k < p2.vectorMax) && (!p2.swapped); k++) {
                             let d2 = v2[k].dir; // dir of vector 2
                             if (vectorMatch[d1][d2]) { // if vector 1 and 2 match
                                 let x1 = p1.x;
@@ -173,6 +211,8 @@ Jimp.read('a.png', function (err, image) {
                                 img[x2][y2] = tmp;
                                 p1.swapped = true;
                                 p2.swapped = true;
+                                p1.vectorMax = 0;
+                                p2.vectorMax = 0;
                             }
                         }
                     }
