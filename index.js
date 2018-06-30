@@ -20,8 +20,22 @@ Jimp.read('a.png', function (err, image) {
             pixIndex: []
         };
     }
+    // vector match - define which vectors can swap pix
+    let vectorMatch = new Array(8);
+    for (i = 0; i < 8; i++) {
+        vectorMatch[i] = [ false, false, false, false, false, false, false, false ];
+    }
+    vectorMatch[0][4] = true; // N-S
+    vectorMatch[1][5] = true; // NW-SE
+    vectorMatch[2][6] = true; // W-E
+    vectorMatch[3][7] = true; // SW-NE
+    vectorMatch[4][0] = true; // S-N
+    vectorMatch[5][1] = true; // SE-NW
+    vectorMatch[6][2] = true; // E-W
+    vectorMatch[7][3] = true; // NE-SW
     let pix = new Array(width * height); // pixels
     let pixOrder = new Array(width * height); // pixel order
+    // directions for vectors
     let dir = [
         { x:  0, y: -1 }, // N
         { x:  1, y: -1 }, // NW
@@ -128,7 +142,39 @@ Jimp.read('a.png', function (err, image) {
             return a.order - b.order;
         });
         console.log('Find vector matches and swap pixels');
-        // TODO: Find vector matches and swap pixels
+        // Find vector matches and swap pixels
+        for (let i = 0; i < pixOrder.length; i++) {
+            let n1 = pixOrder[i].pixIndex;
+            let p1 = pix[n1];
+            // if pixel 1 has not been swapped yet
+            if (!p1.swapped) {
+                let v1 = p1.vectors;
+                for (let j = 0; j < v1.length; j++) {
+                    let x2 = v1[j].x;
+                    let y2 = v1[j].y;
+                    let n2 = img[x2][y2];
+                    let p2 = pix[n2];
+                    // if pixel 2 has not been swapped yet
+                    if (!p2.swapped) {
+                        let d1 = v1[j].dir; // dir of vector 1
+                        let v2 = p2.vectors;
+                        for (let k = 0; k < v2.length; k++) {
+                            let d2 = v2[k].dir; // dir of vector 2
+                            if (vectorMatch[d1][d2]) { // if vector 1 and 2 match
+                                let x1 = p1.x;
+                                let y1 = p1.y;
+                                let tmp = img[x1][y1];
+                                img[x1][y1] = img[x2][y2];
+                                img[x2][y2] = tmp;
+                                p1.swapped = true;
+                                p2.swapped = true;
+                            }
+                        }
+                    }
+    
+                }
+            }
+        }
         console.log('Output image with swapped pixels');
         // TODO: Output image with swapped pixels
         image.scan(0, 0, width, height, function (x, y, idx) {
