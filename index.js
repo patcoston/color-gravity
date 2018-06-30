@@ -10,7 +10,7 @@ let Jimp = require('jimp');
 //   - x y - location of pixel in that vector direction. Use for indexes into array img[][]
 //   - dir - direction. Index into array dir[]
 //   - distToCenter - distance from x y to the pix colorGroup[group] centerX centerY. Array is sorted by this value.
-// - vectorMax - maximum number of vectors. Init to 0. Incremented by 1 each generation. Max value 8, for the 8 directions (see array dir[])
+// - vectorsUsed - maximum number of vectors. Init to 0. Incremented by 1 each generation. Max value 8, for the 8 directions (see array dir[])
 // dir[] - 1D array of object.
 // - x y - offsets to the 8 directions: 0=N 1=NW 2=W 3=SW 4=S 5=SE 6=E 7=NE
 // vectorMatch[][] - 2D array of boolean.  Indexes are 0-7, the 8 directions. True if two vectors are opposite directions for example N and S, false otherwise.
@@ -27,8 +27,8 @@ Jimp.read('a.png', function (err, image) {
         throw err;
     }
     function getPixVectors(pix) {
-        if (pix.vectorMax < 8) {
-            pix.vectorMax++;
+        if (pix.vectorsUsed < vectorMax) {
+            pix.vectorsUsed++;
         }
         pix.vectors = []; // reset vector array
         for (let v = 0; v < 8; v++) {
@@ -48,9 +48,10 @@ Jimp.read('a.png', function (err, image) {
         }
     }
     // SETTINGS
-    let generations = 500;
-    let size = 2; // 1 2 4 8 16 32 64 128 256
+    let generations = 5000;
+    let size = 16; // 1 2 4 8 16 32 64 128 256
     let blocks = 256 / size; // per Red, Green or Blue
+    let vectorMax = 6; // how many vectors to consider when looking for a vector match
     // SETUP: colorGroup[] width and height
     let colorGroup = new Array(blocks * blocks * blocks);
     let width = image.bitmap.width;
@@ -115,7 +116,7 @@ Jimp.read('a.png', function (err, image) {
             y: y,
             swapped: false, // has this pixel been swapped?
             vectors: [],
-            vectorMax: 0, // most vectors allowed
+            vectorsUsed: 0, // most vectors allowed
             group: group, // index into array colorGroup[]
         };
         colorGroup[group].pixIndex.push(pixNum);
@@ -137,18 +138,11 @@ Jimp.read('a.png', function (err, image) {
                     let p = pix[n];
                     x += p.x;
                     y += p.y;
-                    // DEBUG
-                    /*
-                    if (i === 16256) {
-                        console.log('pix[' + n + '] x y = ' + x + ' ' + y);
-                    }
-                    */
                 }
                 colorGroup[i].center = {
                     x: Math.round(x / count),
                     y: Math.round(y / count),
                 }
-                // console.log('colorGroup[' + i + '].center{' + colorGroup[i].center.x + ' ' + colorGroup[i].center.y + '}');
             }
         }
         // console.log('Calc distance to color group center for each vector then sort by distance');
@@ -196,8 +190,8 @@ Jimp.read('a.png', function (err, image) {
             if (!p1.swapped) {
                 let v1 = p1.vectors;
                 swapped = false;
-                // vector length can be less than vectorMax if pixel is in corner or on edge
-                let c1 = v1.length <= p1.vectorMax ? v1.length : p1.vectorMax;
+                // vector length can be less than vectorsUsed if pixel is in corner or on edge
+                let c1 = v1.length <= p1.vectorsUsed ? v1.length : p1.vectorsUsed;
                 for (let j = 0; (j < c1) && (!p1.swapped); j++) {
                     let x2 = v1[j].x;
                     let y2 = v1[j].y;
@@ -207,8 +201,8 @@ Jimp.read('a.png', function (err, image) {
                     if (!p2.swapped) {
                         let d1 = v1[j].dir; // dir of vector 1
                         let v2 = p2.vectors;
-                        // vector length can be less than vectorMax if pixel is in corner or on edge
-                        let c2 = v2.length <= p2.vectorMax ? v2.length : p2.vectorMax;
+                        // vector length can be less than vectorsUsed if pixel is in corner or on edge
+                        let c2 = v2.length <= p2.vectorsUsed ? v2.length : p2.vectorsUsed;
                         for (let k = 0; (k < c2) && (!p2.swapped); k++) {
                             let d2 = v2[k].dir; // dir of vector 2
                             if (vectorMatch[d1][d2]) { // if vector 1 and 2 match
@@ -223,8 +217,8 @@ Jimp.read('a.png', function (err, image) {
                                 p2.y = y1;
                                 p1.swapped = true;
                                 p2.swapped = true;
-                                p1.vectorMax = 0;
-                                p2.vectorMax = 0;
+                                p1.vectorsUsed = 0;
+                                p2.vectorsUsed = 0;
                             }
                         }
                     }
@@ -255,6 +249,22 @@ Jimp.read('a.png', function (err, image) {
                 image.setPixelColor(hex, x, y);
             }
         }
+        // DEBUG: Statistics: Average distance to center
+        let averageDistToCenter = 0;
+        for (let i = 0; i < pix.length; i++) {
+            let p = pix[i];
+            let g = colorGroup[p.group];
+            let x1 = p.x;
+            let y1 = p.y;
+            let x2 = g.center.x;
+            let y2 = g.center.y;
+            let x = x1 - x2;
+            let y = y1 - y2;
+            let d = Math.sqrt(x * x + y * y);
+            averageDistToCenter += d;
+        }
+        averageDistToCenter = averageDistToCenter / pix.length;
+        console.log('Average Distance to color group centers ' + averageDistToCenter);
         image.write(`gen${gen}.png`); // save
         gen++;
     }
