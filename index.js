@@ -48,7 +48,7 @@ Jimp.read('a.png', function (err, image) {
         }
     }
     // SETTINGS
-    let generations = 5000;
+    let generations = 10000;
     let size = 16; // 1 2 4 8 16 32 64 128 256
     let blocks = 256 / size; // per Red, Green or Blue
     let vectorMax = 6; // how many vectors to consider when looking for a vector match
@@ -241,6 +241,7 @@ Jimp.read('a.png', function (err, image) {
             }
         }
         // DEBUG: Show color group center with black pixels
+        /*
         for (let i = 0; i < colorGroup.length; i++) {
             if (colorGroup[i].pixIndex.length > 0) {
                 let x = colorGroup[i].center.x;
@@ -249,6 +250,7 @@ Jimp.read('a.png', function (err, image) {
                 image.setPixelColor(hex, x, y);
             }
         }
+        */
         // DEBUG: Statistics: Average distance to center
         let averageDistToCenter = 0;
         for (let i = 0; i < pix.length; i++) {
