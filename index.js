@@ -22,10 +22,175 @@ let Jimp = require('jimp');
 //   - x y - center of color group
 // - pixIndex[] - 1D array of numbers. Indexes into array pix[]. List of pixels in this color group.
 
+// Colors below defined for Strawberry Splashing in Milk
+let colors = [
+    {
+        colorGroup: 0,
+        description: 'white',
+        R: 232,
+        G: 230,
+        B: 231,
+    },
+    {
+        colorGroup: 0,
+        description: 'white',
+        R: 209,
+        G: 215,
+        B: 229,
+    },
+    {
+        colorGroup: 0,
+        description: 'white',
+        R: 207,
+        G: 193,
+        B: 190,
+    },
+    {
+        colorGroup: 0,
+        description: 'white dark',
+        R: 192,
+        G: 176,
+        B: 160,
+    },
+    {
+        colorGroup: 0,
+        description: 'white dark',
+        R: 200,
+        G: 185,
+        B: 180,
+    },
+    {
+        colorGroup: 0,
+        description: 'white dark',
+        R: 177,
+        G: 157,
+        B: 150,
+    },
+    {
+        colorGroup: 0,
+        description: 'white dark',
+        R: 173,
+        G: 151,
+        B: 140,
+    },
+    {
+        colorGroup: 0,
+        description: 'white dark',
+        R: 203,
+        G: 197,
+        B: 173,
+    },
+    {
+        colorGroup: 1,
+        description: 'red',
+        R: 234,
+        G: 18,
+        B: 37,
+    },
+    {
+        colorGroup: 1,
+        description: 'red dark',
+        R: 119,
+        G: 8,
+        B: 25,
+    },
+    {
+        colorGroup: 1,
+        description: 'red light',
+        R: 173,
+        G: 66,
+        B: 96,
+    },
+    {
+        colorGroup: 2,
+        description: 'black',
+        R: 34,
+        G: 24,
+        B: 15,
+    },
+    {
+        colorGroup: 2,
+        description: 'black',
+        R: 30,
+        G: 0,
+        B: 8,
+    },
+    {
+        colorGroup: 2,
+        description: 'black',
+        R: 16,
+        G: 7,
+        B: 10,
+    },
+    {
+        colorGroup: 3,
+        description: 'green',
+        R: 86,
+        G: 98,
+        B: 74,
+    },
+    {
+        colorGroup: 3,
+        description: 'green dark',
+        R: 31,
+        G: 47,
+        B: 37,
+    },
+    {
+        colorGroup: 3,
+        description: 'green dark',
+        R: 47,
+        G: 73,
+        B: 60,
+    },
+    {
+        colorGroup: 3,
+        description: 'green light',
+        R: 102,
+        G: 119,
+        B: 101,
+    },
+    {
+        colorGroup: 3,
+        description: 'green light',
+        R: 148,
+        G: 151,
+        B: 143,
+    },
+    {
+        colorGroup: 3,
+        description: 'green light',
+        R: 174,
+        G: 193,
+        B: 173,
+    },
+];
+
+function getFirstColorInGroup(group) {
+    for (let i = 0; i < colors.length; i++) {
+        if (colors[i].colorGroup === group) {
+            return {
+                R: colors[i].R,
+                G: colors[i].G,
+                B: colors[i].B,
+            }
+        }
+    }
+}
+
 Jimp.read('a.png', function (err, image) {
     if (err) {
         throw err;
     }
+    // SETTINGS
+    let startGeneration = 2001;
+    let endGeneration = 10000;
+    let vectorMax = 6; // how many vectors to consider when looking for a vector match
+    let colorGroupSize = 4; // number of color groups (see colors array for how many colorGroup values are defined)
+    // SETUP: colorGroup[] width and height
+    let colorGroup = new Array(colorGroupSize);
+    let width = image.bitmap.width;
+    let height = image.bitmap.height;
     function getPixVectors(pix) {
         if (pix.vectorsUsed < vectorMax) {
             pix.vectorsUsed++;
@@ -47,15 +212,21 @@ Jimp.read('a.png', function (err, image) {
             }
         }
     }
-    // SETTINGS
-    let generations = 10000;
-    let size = 16; // 1 2 4 8 16 32 64 128 256
-    let blocks = 256 / size; // per Red, Green or Blue
-    let vectorMax = 6; // how many vectors to consider when looking for a vector match
-    // SETUP: colorGroup[] width and height
-    let colorGroup = new Array(blocks * blocks * blocks);
-    let width = image.bitmap.width;
-    let height = image.bitmap.height;
+    function findNearestColorGroup(R, G, B) {
+        let nearest = 99999;
+        let group = 0;
+        for (let i = 0; i < colors.length; i++) {
+            let r = R - colors[i].R;
+            let g = G - colors[i].G;
+            let b = B - colors[i].B;
+            let dist = Math.sqrt(r*r + g*g * b*b);
+            if (dist < nearest) {
+                nearest = dist;
+                group = colors[i].colorGroup;
+            }
+        }
+        return group;
+    }
     // SETUP: 2D array for image
     let img = new Array(width);
     for (let i = 0; i < width; i++) {
@@ -102,10 +273,7 @@ Jimp.read('a.png', function (err, image) {
         let G = this.bitmap.data[idx + 1];
         let B = this.bitmap.data[idx + 2];
         let A = this.bitmap.data[idx + 3];
-        let R1 = Math.abs(Math.round(R / size - 0.5));
-        let G1 = Math.abs(Math.round(G / size - 0.5));
-        let B1 = Math.abs(Math.round(B / size - 0.5));
-        let group = R1 + blocks * (G1 + blocks * B1);
+        let group = findNearestColorGroup(R, G, B);
         img[x][y] = pixNum;
         pix[pixNum] = {
             R: R,
@@ -119,14 +287,25 @@ Jimp.read('a.png', function (err, image) {
             vectorsUsed: 0, // most vectors allowed
             group: group, // index into array colorGroup[]
         };
+        // DEBUG START: Check the color mapping by over-riding RGB with basic colors
+        /*
+        let g = getFirstColorInGroup(group);
+        pix[pixNum].R = g.R;
+        pix[pixNum].G = g.G;
+        pix[pixNum].B = g.B;
+        */
+        // DEBUG END
         colorGroup[group].pixIndex.push(pixNum);
         pixNum++;
     });
-    // Iterate the generations
-    let gen = 1;
-    while (gen <= generations) {
-        console.log('GENERATION: ' + gen);
-        // console.log('Calc center of each color group');
+    // DEBUG: How many colors in each color group?
+    for (let i = 0; i < colorGroup.length; i++) {
+        console.log('Color Group ' + i + ' has ' + colorGroup[i].pixIndex.length + ' pixels');
+    }
+    // Iterate from startGeneration to endGeneration
+    let lastAverageDistToCenter = 99999;
+    let gen = startGeneration;
+    while (gen <= endGeneration) {
         // Calculate center of each color group
         for (let i = 0; i < colorGroup.length; i++) {
             if (colorGroup[i].pixIndex.length > 0) {
@@ -145,7 +324,6 @@ Jimp.read('a.png', function (err, image) {
                 }
             }
         }
-        // console.log('Calc distance to color group center for each vector then sort by distance');
         // Calculate distance to color group center for each vector then sort by distance
         for (let x = 0; x < width; x++) {
             for (let y = 0; y < height; y++) {
@@ -170,7 +348,6 @@ Jimp.read('a.png', function (err, image) {
                 });
             }
         }
-        // console.log('Randomize order of pixels');
         // Randomize order of pixels
         for (let i = 0; i < pix.length; i++) {
             pixOrder[i] = {
@@ -181,7 +358,6 @@ Jimp.read('a.png', function (err, image) {
         pixOrder.sort(function(a, b) {
             return a.order - b.order;
         });
-        // console.log('Find vector matches and swap pixels');
         // Find vector matches and swap pixels
         for (let i = 0; i < pixOrder.length; i++) {
             let n1 = pixOrder[i].pixIndex;
@@ -226,8 +402,7 @@ Jimp.read('a.png', function (err, image) {
                 }
             }
         }
-        // console.log('Output image with swapped pixels');
-        // TODO: Output image with swapped pixels
+        // Output image with swapped pixels
         for (let x = 0; x < width; x++) {
             for (let y = 0; y < height; y++) {
                 let n = img[x][y];
@@ -266,8 +441,14 @@ Jimp.read('a.png', function (err, image) {
             averageDistToCenter += d;
         }
         averageDistToCenter = averageDistToCenter / pix.length;
-        console.log('Average Distance to color group centers ' + averageDistToCenter);
-        image.write(`gen${gen}.png`); // save
+        if (averageDistToCenter < lastAverageDistToCenter) {
+            lastAverageDistToCenter = averageDistToCenter;
+            console.log('GENERATION ' + gen + ' dist ' + averageDistToCenter + ' IMPROVED!');
+            image.write(`gen${gen}i.png`); // save
+        } else {
+            console.log('GENERATION ' + gen + ' dist ' + averageDistToCenter);
+            image.write(`gen${gen}x.png`); // save
+        }
         gen++;
     }
 });
