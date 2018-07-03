@@ -18,157 +18,20 @@ let Jimp = require('jimp');
 // - pixIndex - index into array pix[]
 // - order - random number used for sorting
 // colorGroup - 1D array of object. Used to define the color groups.
+// - name - string of color name
+// - hex[] - array of strings of hex colors
 // - center - object
 //   - x y - center of color group
 // - pixIndex[] - 1D array of numbers. Indexes into array pix[]. List of pixels in this color group.
-
-// Colors below defined for Strawberry Splashing in Milk
-let colors = [
-    {
-        colorGroup: 0,
-        description: 'white',
-        R: 232,
-        G: 230,
-        B: 231,
-    },
-    {
-        colorGroup: 0,
-        description: 'white',
-        R: 209,
-        G: 215,
-        B: 229,
-    },
-    {
-        colorGroup: 0,
-        description: 'white',
-        R: 207,
-        G: 193,
-        B: 190,
-    },
-    {
-        colorGroup: 0,
-        description: 'white dark',
-        R: 192,
-        G: 176,
-        B: 160,
-    },
-    {
-        colorGroup: 0,
-        description: 'white dark',
-        R: 200,
-        G: 185,
-        B: 180,
-    },
-    {
-        colorGroup: 0,
-        description: 'white dark',
-        R: 177,
-        G: 157,
-        B: 150,
-    },
-    {
-        colorGroup: 0,
-        description: 'white dark',
-        R: 173,
-        G: 151,
-        B: 140,
-    },
-    {
-        colorGroup: 0,
-        description: 'white dark',
-        R: 203,
-        G: 197,
-        B: 173,
-    },
-    {
-        colorGroup: 1,
-        description: 'red',
-        R: 234,
-        G: 18,
-        B: 37,
-    },
-    {
-        colorGroup: 1,
-        description: 'red dark',
-        R: 119,
-        G: 8,
-        B: 25,
-    },
-    {
-        colorGroup: 1,
-        description: 'red light',
-        R: 173,
-        G: 66,
-        B: 96,
-    },
-    {
-        colorGroup: 2,
-        description: 'black',
-        R: 34,
-        G: 24,
-        B: 15,
-    },
-    {
-        colorGroup: 2,
-        description: 'black',
-        R: 30,
-        G: 0,
-        B: 8,
-    },
-    {
-        colorGroup: 2,
-        description: 'black',
-        R: 16,
-        G: 7,
-        B: 10,
-    },
-    {
-        colorGroup: 3,
-        description: 'green',
-        R: 86,
-        G: 98,
-        B: 74,
-    },
-    {
-        colorGroup: 3,
-        description: 'green dark',
-        R: 31,
-        G: 47,
-        B: 37,
-    },
-    {
-        colorGroup: 3,
-        description: 'green dark',
-        R: 47,
-        G: 73,
-        B: 60,
-    },
-    {
-        colorGroup: 3,
-        description: 'green light',
-        R: 102,
-        G: 119,
-        B: 101,
-    },
-    {
-        colorGroup: 3,
-        description: 'green light',
-        R: 148,
-        G: 151,
-        B: 143,
-    },
-    {
-        colorGroup: 3,
-        description: 'green light',
-        R: 174,
-        G: 193,
-        B: 173,
-    },
-];
+// colors[] - array of objects
+// - R G B - Red Green Blue
+// - group - index into colorGroup[] array
+// - hexIndex - index into array colorGroup[].hex[]
+// - name - name of color
 
 function getFirstColorInGroup(group) {
     for (let i = 0; i < colors.length; i++) {
-        if (colors[i].colorGroup === group) {
+        if (colors[i].group === group) {
             return {
                 R: colors[i].R,
                 G: colors[i].G,
@@ -178,17 +41,82 @@ function getFirstColorInGroup(group) {
     }
 }
 
+let colorGroup = [
+    { name: 'white', hex: ['FFFFFF'] },
+    { name: 'black', hex: ['000000'] },
+    { name: 'grey light', hex: ['CCCCCC', 'DDDDDD', 'EEEEEE'] },
+    { name: 'grey medium', hex: ['999999', 'AAAAAA', 'BBBBBB'] },
+    { name: 'grey dark', hex: ['111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888'] },
+    { name: 'red medium', hex: ['E31230', 'FF030D'] },
+    { name: 'red light', hex: ['FF6F6F', 'FF6666', 'EE909F'] },
+    { name: 'red dark', hex: ['660000', '8B0000', '99182C', '55141C'] },
+    { name: 'red bright', hex: ['E60000', 'FF0000'] },
+    { name: 'orange medium', hex: ['FF5B09', 'FF6600', 'FB861A', 'FE7E00', 'FF952B'] },
+    { name: 'orange light', hex: ['FF7F50', 'FFB872', 'FFC388'] },
+    { name: 'orange dark', hex: ['EE4000', 'E76021'] },
+    { name: 'orange bright', hex: ['FF6103', 'FFAF4D'] },
+    { name: 'yellow medium', hex: ['FFDB58'] },
+    { name: 'yellow light', hex: ['FFEA9F', 'FFFFBE', 'FFFFD5'] },
+    { name: 'yellow dark', hex: ['FFCC11'] },
+    { name: 'yellow bright', hex: ['FFFF2A', 'FFFF2B', 'FFFF41', 'FFFF00'] },
+    { name: 'green medium', hex: ['6EFF70', '39F55A', '43DD62', '3EA055', '66CDAA'] },
+    { name: 'green light', hex: ['DFF2AE', 'EBF7CC', 'DAE9B0', 'C9FF93', 'BFEADC'] },
+    { name: 'green dark', hex: ['7B7922', '4F4F2F', '414F12', '385E0F', '3B5323', '4C7064'] },
+    { name: 'green bright', hex: ['7EFE00', '7CFC00', '7FFF00', '00FF00'] },
+    { name: 'cyan medium', hex: ['00EEEE'] },
+    { name: 'cyan light', hex: ['B1FFFF', 'CBFFFF', 'C9FFFF', '9DE1FF'] },
+    { name: 'cyan dark', hex: ['008B8B', '00CDCD', '38B0DE', '1D88EA'] },
+    { name: 'cyan bright', hex: ['41FFFF', '3ABEFE'] },
+    { name: 'blue medium', hex: ['2385E6', '1E90FF', '4E9FFE', '0276FD', '0147FA'] },
+    { name: 'blue light', hex: ['86BCF1', 'A4CEF8', 'A3D2FF', '71B3FF', '5F90D0'] },
+    { name: 'blue dark', hex: ['104E8B', '003F87', '2C5197'] },
+    { name: 'blue bright', hex: ['0000FF', '0075FB'] },
+    { name: 'purple medium', hex: ['3B4990', 'A020F0', 'DB4DFF', '9B30FF'] },
+    { name: 'purple light', hex: ['9DA9E4', 'ADADEB', 'B2ABDA', 'C7BEFF', 'E0B8EB'] },
+    { name: 'purple dark', hex: ['162252', '23238E', '120A8F', '4B0082', '660198', '91219E'] },
+    { name: 'purple bright', hex: ['B533F3', 'C12FFF', 'FF09FF'] },
+    { name: 'magenta medium', hex: ['CD00CD'] },
+    { name: 'magenta light', hex: ['AD99FF'] },
+    { name: 'magenta dark', hex: ['8B008B'] },
+    { name: 'magenta bright', hex: ['EE00EE', 'FF00FF'] },
+    { name: 'pink medium', hex: ['FF6EC7'] },
+    { name: 'pink light', hex: ['F8A9A9', 'FFCCCC', 'ECC8EC', 'FFE2FF'] },
+    { name: 'pink dark', hex: ['EE82EE', 'DB70DB'] },
+    { name: 'pink bright', hex: ['FE00FE', 'FF09FF', 'FF1CAE'] },
+    { name: 'brown medium', hex: ['BF6A30', 'D06F2F', 'AA5303'] },
+    { name: 'brown light', hex: ['BD7645', 'DBB399'] },
+    { name: 'brown dark', hex: ['5E2612', '8B2500', '5C3317', '603311', '8B4500'] },
+];
+// SETUP: Convert hex colors to RGB
+let colors = [];
+for (let group = 0; group < colorGroup.length; group++) {
+    let hex = colorGroup[group].hex;
+    for (let hexIndex = 0; hexIndex < hex.length; hexIndex++) {
+        let n = parseInt(hex[hexIndex], 16);
+        let R = (n >> 16) & 255;
+        let G = (n >> 8) & 255;
+        let B = n & 255;
+        let name = colorGroup[group].name;
+        colors.push({
+            R: R,
+            G: G,
+            B: B,
+            group: group,
+            hexIndex: hexIndex,
+            name: name,
+        });
+    }
+}
+
 Jimp.read('a.png', function (err, image) {
     if (err) {
         throw err;
     }
     // SETTINGS
-    let startGeneration = 2001;
-    let endGeneration = 10000;
+    let startGeneration = 5001;
+    let endGeneration = 20000;
     let vectorMax = 6; // how many vectors to consider when looking for a vector match
-    let colorGroupSize = 4; // number of color groups (see colors array for how many colorGroup values are defined)
     // SETUP: colorGroup[] width and height
-    let colorGroup = new Array(colorGroupSize);
     let width = image.bitmap.width;
     let height = image.bitmap.height;
     function getPixVectors(pix) {
@@ -222,7 +150,7 @@ Jimp.read('a.png', function (err, image) {
             let dist = Math.sqrt(r*r + g*g * b*b);
             if (dist < nearest) {
                 nearest = dist;
-                group = colors[i].colorGroup;
+                group = colors[i].group;
             }
         }
         return group;
@@ -235,10 +163,8 @@ Jimp.read('a.png', function (err, image) {
     // console.log('Init colorGroup array ' + colorGroup.length);
     // SETUP: colorGroup[]
     for (let i = 0; i < colorGroup.length; i++) {
-        colorGroup[i] = {
-            center: { x: 0, y: 0 },
-            pixIndex: []
-        };
+        colorGroup[i].center = { x: 0, y: 0 };
+        colorGroup[i].pixIndex = [];
     }
     // SETUP: vector match - define which vectors can swap pix
     let vectorMatch = new Array(8);
@@ -300,7 +226,7 @@ Jimp.read('a.png', function (err, image) {
     });
     // DEBUG: How many colors in each color group?
     for (let i = 0; i < colorGroup.length; i++) {
-        console.log('Color Group ' + i + ' has ' + colorGroup[i].pixIndex.length + ' pixels');
+        console.log('Color Group ' + i + ' name ' + colorGroup[i].name + ' has ' + colorGroup[i].pixIndex.length + ' pixels');
     }
     // Iterate from startGeneration to endGeneration
     let lastAverageDistToCenter = 99999;
