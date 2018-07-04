@@ -113,9 +113,9 @@ Jimp.read('a.png', function (err, image) {
         throw err;
     }
     // SETTINGS
-    let startGeneration = 5001;
-    let endGeneration = 20000;
-    let vectorMax = 6; // how many vectors to consider when looking for a vector match
+    let startGeneration = 1;
+    let endGeneration   = 6000;
+    let vectorMax = 8; // how many vectors to consider when looking for a vector match
     // SETUP: colorGroup[] width and height
     let width = image.bitmap.width;
     let height = image.bitmap.height;
@@ -147,7 +147,7 @@ Jimp.read('a.png', function (err, image) {
             let r = R - colors[i].R;
             let g = G - colors[i].G;
             let b = B - colors[i].B;
-            let dist = Math.sqrt(r*r + g*g * b*b);
+            let dist = r*r + g*g * b*b;
             if (dist < nearest) {
                 nearest = dist;
                 group = colors[i].group;
@@ -214,12 +214,10 @@ Jimp.read('a.png', function (err, image) {
             group: group, // index into array colorGroup[]
         };
         // DEBUG START: Check the color mapping by over-riding RGB with basic colors
-        /*
         let g = getFirstColorInGroup(group);
         pix[pixNum].R = g.R;
         pix[pixNum].G = g.G;
         pix[pixNum].B = g.B;
-        */
         // DEBUG END
         colorGroup[group].pixIndex.push(pixNum);
         pixNum++;
@@ -244,9 +242,10 @@ Jimp.read('a.png', function (err, image) {
                     x += p.x;
                     y += p.y;
                 }
+                let div = 1 / count;
                 colorGroup[i].center = {
-                    x: Math.round(x / count),
-                    y: Math.round(y / count),
+                    x: Math.round(x * div),
+                    y: Math.round(y * div),
                 }
             }
         }
@@ -266,7 +265,7 @@ Jimp.read('a.png', function (err, image) {
                     let y2 = g.center.y;
                     let x = x1 - x2;
                     let y = y1 - y2;
-                    let d = Math.sqrt(x * x + y * y);
+                    let d = x * x + y * y;
                     v[i].distToCenter = d;
                 }
                 v.sort(function(a, b) { // sort by distToCenter ascending
@@ -308,19 +307,24 @@ Jimp.read('a.png', function (err, image) {
                         for (let k = 0; (k < c2) && (!p2.swapped); k++) {
                             let d2 = v2[k].dir; // dir of vector 2
                             if (vectorMatch[d1][d2]) { // if vector 1 and 2 match
-                                let x1 = p1.x;
-                                let y1 = p1.y;
-                                let tmp = img[x1][y1];
-                                img[x1][y1] = img[x2][y2];
-                                img[x2][y2] = tmp;
-                                p1.x = x2;
-                                p1.y = y2;
-                                p2.x = x1;
-                                p2.y = y1;
-                                p1.swapped = true;
-                                p2.swapped = true;
-                                p1.vectorsUsed = 0;
-                                p2.vectorsUsed = 0;
+                                let g1 = p1.group;
+                                let g2 = p2.group;
+                                // if groups are different. Cannot swap with pixel in the same group. This reduces churn and allows groups to pass through each other.
+                                if (g1 !== g2) {
+                                    let x1 = p1.x;
+                                    let y1 = p1.y;
+                                    let tmp = img[x1][y1];
+                                    img[x1][y1] = img[x2][y2];
+                                    img[x2][y2] = tmp;
+                                    p1.x = x2;
+                                    p1.y = y2;
+                                    p2.x = x1;
+                                    p2.y = y1;
+                                    p1.swapped = true;
+                                    p2.swapped = true;
+                                    p1.vectorsUsed = 0;
+                                    p2.vectorsUsed = 0;
+                                }
                             }
                         }
                     }
@@ -333,25 +337,29 @@ Jimp.read('a.png', function (err, image) {
             for (let y = 0; y < height; y++) {
                 let n = img[x][y];
                 let p = pix[n];
-                let R = p.R;
-                let G = p.G;
-                let B = p.B;
-                let A = p.A;
-                let hex = Jimp.rgbaToInt(R, G, B, A);
+                // DEBUG: Test to see which pixels are getting swapped
+                let hex = 0;
+                if (p.swapped) {
+                    hex = Jimp.rgbaToInt(255, 64, 255, 255);
+                } else {
+                    let R = p.R;
+                    let G = p.G;
+                    let B = p.B;
+                    let A = p.A;
+                    hex = Jimp.rgbaToInt(R, G, B, A);
+                }
                 image.setPixelColor(hex, x, y);
             }
         }
-        // DEBUG: Show color group center with black pixels
-        /*
+        // DEBUG: Show color group center with blue pixels
         for (let i = 0; i < colorGroup.length; i++) {
             if (colorGroup[i].pixIndex.length > 0) {
                 let x = colorGroup[i].center.x;
                 let y = colorGroup[i].center.y;
-                let hex = Jimp.rgbaToInt(0, 0, 0, 255);
+                let hex = Jimp.rgbaToInt(0, 0, 255, 255);
                 image.setPixelColor(hex, x, y);
             }
         }
-        */
         // DEBUG: Statistics: Average distance to center
         let averageDistToCenter = 0;
         for (let i = 0; i < pix.length; i++) {
@@ -363,7 +371,7 @@ Jimp.read('a.png', function (err, image) {
             let y2 = g.center.y;
             let x = x1 - x2;
             let y = y1 - y2;
-            let d = Math.sqrt(x * x + y * y);
+            let d = x * x + y * y;
             averageDistToCenter += d;
         }
         averageDistToCenter = averageDistToCenter / pix.length;
