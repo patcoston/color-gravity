@@ -28,6 +28,7 @@ let Jimp = require('jimp');
 // - group - index into colorGroup[] array
 // - hexIndex - index into array colorGroup[].hex[]
 // - name - name of color
+// colorCube[r][g][b] - 3D array of numbers.  0 = no pixel has this color.  -1 = one more more pixels has this color.
 
 function getFirstColorInGroup(group) {
     for (let i = 0; i < colors.length; i++) {
@@ -113,14 +114,13 @@ Jimp.read('a.png', function (err, image) {
         throw err;
     }
     // SETTINGS
-    let startGeneration = 1;
-    let endGeneration   = 6000;
-    let vectorMax = 8; // how many vectors to consider when looking for a vector match
+    let startGeneration =    1;
+    let endGeneration   =  100;
     // SETUP: colorGroup[] width and height
     let width = image.bitmap.width;
     let height = image.bitmap.height;
     function getPixVectors(pix) {
-        if (pix.vectorsUsed < vectorMax) {
+        if (pix.vectorsUsed < 8) {
             pix.vectorsUsed++;
         }
         pix.vectors = []; // reset vector array
@@ -166,7 +166,7 @@ Jimp.read('a.png', function (err, image) {
         colorGroup[i].center = { x: 0, y: 0 };
         colorGroup[i].pixIndex = [];
     }
-    // SETUP: vector match - define which vectors can swap pix
+    // SETUP: vector match - define which vectors can swap pix's
     let vectorMatch = new Array(8);
     for (i = 0; i < 8; i++) {
         vectorMatch[i] = [ false, false, false, false, false, false, false, false ];
@@ -192,6 +192,17 @@ Jimp.read('a.png', function (err, image) {
         { x: -1, y:  0 }, // E
         { x: -1, y: -1 }, // NE
     ];
+    // SETUP: Define colorCube[R][G][B]
+    let colorCube = new Array(256);
+    for (let r = 0; r < 256; r++) {
+        colorCube[r] = new Array(256);
+        for (let g = 0; g < 256; g++) {
+            colorCube[r][g] = new Array(256);
+            for (let b = 0; b < 256; b++) {
+                colorCube[r][g][b] = 0;
+            }
+        }
+    }
     // Setup arrays img[][] and pix[] and colorGroup[].pixIndex[]
     let pixNum = 0;
     image.scan(0, 0, width, height, function (x, y, idx) {
@@ -200,6 +211,7 @@ Jimp.read('a.png', function (err, image) {
         let B = this.bitmap.data[idx + 2];
         let A = this.bitmap.data[idx + 3];
         let group = findNearestColorGroup(R, G, B);
+        colorCube[R][G][B] = -1;
         img[x][y] = pixNum;
         pix[pixNum] = {
             R: R,
@@ -214,22 +226,24 @@ Jimp.read('a.png', function (err, image) {
             group: group, // index into array colorGroup[]
         };
         // DEBUG START: Check the color mapping by over-riding RGB with basic colors
+        /*
         let g = getFirstColorInGroup(group);
         pix[pixNum].R = g.R;
         pix[pixNum].G = g.G;
         pix[pixNum].B = g.B;
-        // DEBUG END
+        */
+        // DEBUG: END
         colorGroup[group].pixIndex.push(pixNum);
         pixNum++;
     });
-    // DEBUG: How many colors in each color group?
+    // DEBUG: Output how many colors in each color group
     for (let i = 0; i < colorGroup.length; i++) {
         console.log('Color Group ' + i + ' name ' + colorGroup[i].name + ' has ' + colorGroup[i].pixIndex.length + ' pixels');
     }
     // Iterate from startGeneration to endGeneration
-    let lastAverageDistToCenter = 99999;
-    let gen = startGeneration;
-    while (gen <= endGeneration) {
+    let lastAverageDistToCenter = Number.POSITIVE_INFINITY;
+    let generation = startGeneration;
+    while (generation <= endGeneration) {
         // Calculate center of each color group
         for (let i = 0; i < colorGroup.length; i++) {
             if (colorGroup[i].pixIndex.length > 0) {
@@ -337,7 +351,14 @@ Jimp.read('a.png', function (err, image) {
             for (let y = 0; y < height; y++) {
                 let n = img[x][y];
                 let p = pix[n];
-                // DEBUG: Test to see which pixels are getting swapped
+                let R = p.R;
+                let G = p.G;
+                let B = p.B;
+                let A = p.A;
+                let hex = Jimp.rgbaToInt(R, G, B, A);
+                image.setPixelColor(hex, x, y);
+                // DEBUG: Change swapped pixels to purple
+                /*
                 let hex = 0;
                 if (p.swapped) {
                     hex = Jimp.rgbaToInt(255, 64, 255, 255);
@@ -349,9 +370,12 @@ Jimp.read('a.png', function (err, image) {
                     hex = Jimp.rgbaToInt(R, G, B, A);
                 }
                 image.setPixelColor(hex, x, y);
+                */
+                // DEBUG: END
             }
         }
         // DEBUG: Show color group center with blue pixels
+        /*
         for (let i = 0; i < colorGroup.length; i++) {
             if (colorGroup[i].pixIndex.length > 0) {
                 let x = colorGroup[i].center.x;
@@ -360,6 +384,8 @@ Jimp.read('a.png', function (err, image) {
                 image.setPixelColor(hex, x, y);
             }
         }
+        */
+        // DEBUG: END
         // DEBUG: Statistics: Average distance to center
         let averageDistToCenter = 0;
         for (let i = 0; i < pix.length; i++) {
@@ -377,12 +403,12 @@ Jimp.read('a.png', function (err, image) {
         averageDistToCenter = averageDistToCenter / pix.length;
         if (averageDistToCenter < lastAverageDistToCenter) {
             lastAverageDistToCenter = averageDistToCenter;
-            console.log('GENERATION ' + gen + ' dist ' + averageDistToCenter + ' IMPROVED!');
-            image.write(`gen${gen}i.png`); // save
+            console.log('GENERATION ' + generation + ' dist ' + averageDistToCenter + ' IMPROVED!');
+            image.write(`gen${generation}i.png`); // save
         } else {
-            console.log('GENERATION ' + gen + ' dist ' + averageDistToCenter);
-            image.write(`gen${gen}x.png`); // save
+            console.log('GENERATION ' + generation + ' dist ' + averageDistToCenter);
+            image.write(`gen${generation}x.png`); // save
         }
-        gen++;
+        generation++;
     }
 });
