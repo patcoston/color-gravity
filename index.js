@@ -1,4 +1,5 @@
 let Jimp = require('jimp');
+var fs = require('fs');
 
 // img[][] - 2D array of number. Indexes into array pix[]
 // pix[] - 1D array of object for each pixel
@@ -109,13 +110,16 @@ for (let group = 0; group < colorGroup.length; group++) {
     }
 }
 
-Jimp.read('a.png', function (err, image) {
+// SETTINGS
+let debug = false;
+let startGeneration = 24001;
+let endGeneration   = 30000;
+let startingImage = 'gen24000i.png';
+
+Jimp.read(startingImage, function (err, image) {
     if (err) {
         throw err;
     }
-    // SETTINGS
-    let startGeneration =    1;
-    let endGeneration   =  100;
     // SETUP: colorGroup[] width and height
     let width = image.bitmap.width;
     let height = image.bitmap.height;
@@ -199,7 +203,7 @@ Jimp.read('a.png', function (err, image) {
         for (let g = 0; g < 256; g++) {
             colorCube[r][g] = new Array(256);
             for (let b = 0; b < 256; b++) {
-                colorCube[r][g][b] = 0;
+                colorCube[r][g][b] = -1;
             }
         }
     }
@@ -211,7 +215,7 @@ Jimp.read('a.png', function (err, image) {
         let B = this.bitmap.data[idx + 2];
         let A = this.bitmap.data[idx + 3];
         let group = findNearestColorGroup(R, G, B);
-        colorCube[R][G][B] = -1;
+        colorCube[R][G][B] = group;
         img[x][y] = pixNum;
         pix[pixNum] = {
             R: R,
@@ -225,17 +229,46 @@ Jimp.read('a.png', function (err, image) {
             vectorsUsed: 0, // most vectors allowed
             group: group, // index into array colorGroup[]
         };
-        // DEBUG START: Check the color mapping by over-riding RGB with basic colors
-        /*
-        let g = getFirstColorInGroup(group);
-        pix[pixNum].R = g.R;
-        pix[pixNum].G = g.G;
-        pix[pixNum].B = g.B;
-        */
+        // DEBUG: START: Check the color mapping by over-riding RGB with basic colors
+        if (debug) {
+            let g = getFirstColorInGroup(group);
+            pix[pixNum].R = g.R;
+            pix[pixNum].G = g.G;
+            pix[pixNum].B = g.B;
+        }
         // DEBUG: END
         colorGroup[group].pixIndex.push(pixNum);
         pixNum++;
     });
+    // DEBUG: Output colorGroup[] to web page and colors of pixels in that color group
+    let html = '<table>';
+    for (let c = 0; c < colorGroup.length; c++) {
+        html += '<tr><td style="width:150px">' + colorGroup[c].name + '</td><td style="text-align:left">';
+        for (let h = 0; h < colorGroup[c].hex.length; h++) {
+            html += '<span style="background-color:#' + colorGroup[c].hex[h] + '">' + colorGroup[c].hex[h] + '</span>&nbsp;';
+        }
+        html += '</td></tr><tr><td colspan="2">';
+        for (r = 0; r < 256; r++) {
+            for (g = 0; g < 256; g++) {
+                for (b = 0; b < 256; b++) {
+                    if (colorCube[r][g][b] > -1) {
+                        let group = colorCube[r][g][b];
+                        if (group === c) {
+                            html += '<span style="background-color:rgba('+r+','+g+','+b+',255)">[&nbsp;]</span>';
+                        }
+                    }
+                }
+            }
+        }
+        html += '</td></tr>';
+    }
+    html += '</table>';
+    fs.writeFile("color-group.html", html, function(err) {
+        if(err) {
+            return console.log(err);
+        }
+        console.log("color-group.html file was saved!");
+    }); 
     // DEBUG: Output how many colors in each color group
     for (let i = 0; i < colorGroup.length; i++) {
         console.log('Color Group ' + i + ' name ' + colorGroup[i].name + ' has ' + colorGroup[i].pixIndex.length + ' pixels');
@@ -357,34 +390,34 @@ Jimp.read('a.png', function (err, image) {
                 let A = p.A;
                 let hex = Jimp.rgbaToInt(R, G, B, A);
                 image.setPixelColor(hex, x, y);
-                // DEBUG: Change swapped pixels to purple
-                /*
-                let hex = 0;
-                if (p.swapped) {
-                    hex = Jimp.rgbaToInt(255, 64, 255, 255);
-                } else {
-                    let R = p.R;
-                    let G = p.G;
-                    let B = p.B;
-                    let A = p.A;
-                    hex = Jimp.rgbaToInt(R, G, B, A);
+                // DEBUG: START Change swapped pixels to purple
+                if (debug) {
+                    let hex = 0;
+                    if (p.swapped) {
+                        hex = Jimp.rgbaToInt(255, 64, 255, 255);
+                    } else {
+                        let R = p.R;
+                        let G = p.G;
+                        let B = p.B;
+                        let A = p.A;
+                        hex = Jimp.rgbaToInt(R, G, B, A);
+                    }
+                    image.setPixelColor(hex, x, y);
                 }
-                image.setPixelColor(hex, x, y);
-                */
                 // DEBUG: END
             }
         }
         // DEBUG: Show color group center with blue pixels
-        /*
-        for (let i = 0; i < colorGroup.length; i++) {
-            if (colorGroup[i].pixIndex.length > 0) {
-                let x = colorGroup[i].center.x;
-                let y = colorGroup[i].center.y;
-                let hex = Jimp.rgbaToInt(0, 0, 255, 255);
-                image.setPixelColor(hex, x, y);
+        if (debug) {
+            for (let i = 0; i < colorGroup.length; i++) {
+                if (colorGroup[i].pixIndex.length > 0) {
+                    let x = colorGroup[i].center.x;
+                    let y = colorGroup[i].center.y;
+                    let hex = Jimp.rgbaToInt(0, 0, 255, 255);
+                    image.setPixelColor(hex, x, y);
+                }
             }
         }
-        */
         // DEBUG: END
         // DEBUG: Statistics: Average distance to center
         let averageDistToCenter = 0;
