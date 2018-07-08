@@ -1,5 +1,5 @@
 let Jimp = require('jimp');
-var fs = require('fs');
+// let fs = require('fs');
 
 // img[][] - 2D array of number. Indexes into array pix[]
 // pix[] - 1D array of object for each pixel
@@ -19,108 +19,72 @@ var fs = require('fs');
 // - pixIndex - index into array pix[]
 // - order - random number used for sorting
 // colorGroup - 1D array of object. Used to define the color groups.
-// - name - string of color name
-// - hex[] - array of strings of hex colors
-// - center - object
-//   - x y - center of color group
+// - centerX centerY - center of color group
 // - pixIndex[] - 1D array of numbers. Indexes into array pix[]. List of pixels in this color group.
-// colors[] - array of objects
-// - R G B - Red Green Blue
-// - group - index into colorGroup[] array
-// - hexIndex - index into array colorGroup[].hex[]
-// - name - name of color
-// colorCube[r][g][b] - 3D array of numbers.  0 = no pixel has this color.  -1 = one more more pixels has this color.
-
-function getFirstColorInGroup(group) {
-    for (let i = 0; i < colors.length; i++) {
-        if (colors[i].group === group) {
-            return {
-                R: colors[i].R,
-                G: colors[i].G,
-                B: colors[i].B,
-            }
-        }
-    }
-}
-
-let colorGroup = [
-    { name: 'white', hex: ['FFFFFF'] },
-    { name: 'black', hex: ['000000'] },
-    { name: 'grey light', hex: ['CCCCCC', 'DDDDDD', 'EEEEEE'] },
-    { name: 'grey medium', hex: ['999999', 'AAAAAA', 'BBBBBB'] },
-    { name: 'grey dark', hex: ['111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888'] },
-    { name: 'red medium', hex: ['E31230', 'FF030D'] },
-    { name: 'red light', hex: ['FF6F6F', 'FF6666', 'EE909F'] },
-    { name: 'red dark', hex: ['660000', '8B0000', '99182C', '55141C'] },
-    { name: 'red bright', hex: ['E60000', 'FF0000'] },
-    { name: 'orange medium', hex: ['FF5B09', 'FF6600', 'FB861A', 'FE7E00', 'FF952B'] },
-    { name: 'orange light', hex: ['FF7F50', 'FFB872', 'FFC388'] },
-    { name: 'orange dark', hex: ['EE4000', 'E76021'] },
-    { name: 'orange bright', hex: ['FF6103', 'FFAF4D'] },
-    { name: 'yellow medium', hex: ['FFDB58'] },
-    { name: 'yellow light', hex: ['FFEA9F', 'FFFFBE', 'FFFFD5'] },
-    { name: 'yellow dark', hex: ['FFCC11'] },
-    { name: 'yellow bright', hex: ['FFFF2A', 'FFFF2B', 'FFFF41', 'FFFF00'] },
-    { name: 'green medium', hex: ['6EFF70', '39F55A', '43DD62', '3EA055', '66CDAA'] },
-    { name: 'green light', hex: ['DFF2AE', 'EBF7CC', 'DAE9B0', 'C9FF93', 'BFEADC'] },
-    { name: 'green dark', hex: ['7B7922', '4F4F2F', '414F12', '385E0F', '3B5323', '4C7064'] },
-    { name: 'green bright', hex: ['7EFE00', '7CFC00', '7FFF00', '00FF00'] },
-    { name: 'cyan medium', hex: ['00EEEE'] },
-    { name: 'cyan light', hex: ['B1FFFF', 'CBFFFF', 'C9FFFF', '9DE1FF'] },
-    { name: 'cyan dark', hex: ['008B8B', '00CDCD', '38B0DE', '1D88EA'] },
-    { name: 'cyan bright', hex: ['41FFFF', '3ABEFE'] },
-    { name: 'blue medium', hex: ['2385E6', '1E90FF', '4E9FFE', '0276FD', '0147FA'] },
-    { name: 'blue light', hex: ['86BCF1', 'A4CEF8', 'A3D2FF', '71B3FF', '5F90D0'] },
-    { name: 'blue dark', hex: ['104E8B', '003F87', '2C5197'] },
-    { name: 'blue bright', hex: ['0000FF', '0075FB'] },
-    { name: 'purple medium', hex: ['3B4990', 'A020F0', 'DB4DFF', '9B30FF'] },
-    { name: 'purple light', hex: ['9DA9E4', 'ADADEB', 'B2ABDA', 'C7BEFF', 'E0B8EB'] },
-    { name: 'purple dark', hex: ['162252', '23238E', '120A8F', '4B0082', '660198', '91219E'] },
-    { name: 'purple bright', hex: ['B533F3', 'C12FFF', 'FF09FF'] },
-    { name: 'magenta medium', hex: ['CD00CD'] },
-    { name: 'magenta light', hex: ['AD99FF'] },
-    { name: 'magenta dark', hex: ['8B008B'] },
-    { name: 'magenta bright', hex: ['EE00EE', 'FF00FF'] },
-    { name: 'pink medium', hex: ['FF6EC7'] },
-    { name: 'pink light', hex: ['F8A9A9', 'FFCCCC', 'ECC8EC', 'FFE2FF'] },
-    { name: 'pink dark', hex: ['EE82EE', 'DB70DB'] },
-    { name: 'pink bright', hex: ['FE00FE', 'FF09FF', 'FF1CAE'] },
-    { name: 'brown medium', hex: ['BF6A30', 'D06F2F', 'AA5303'] },
-    { name: 'brown light', hex: ['BD7645', 'DBB399'] },
-    { name: 'brown dark', hex: ['5E2612', '8B2500', '5C3317', '603311', '8B4500'] },
-];
-// SETUP: Convert hex colors to RGB
-let colors = [];
-for (let group = 0; group < colorGroup.length; group++) {
-    let hex = colorGroup[group].hex;
-    for (let hexIndex = 0; hexIndex < hex.length; hexIndex++) {
-        let n = parseInt(hex[hexIndex], 16);
-        let R = (n >> 16) & 255;
-        let G = (n >> 8) & 255;
-        let B = n & 255;
-        let name = colorGroup[group].name;
-        colors.push({
-            R: R,
-            G: G,
-            B: B,
-            group: group,
-            hexIndex: hexIndex,
-            name: name,
-        });
-    }
-}
+// colorCube[r][g][b] - 3D array of numbers.  The color group number or -1 if RGB not used.  Each unique poster color is a unique group number.
+// imageGroups[x][y] - 1D darray of numbers. Group numbers for that x,y location
 
 // SETTINGS
 let debug = false;
-let startGeneration = 24001;
-let endGeneration   = 30000;
-let startingImage = 'gen24000i.png';
+let startGeneration =  6001;
+let endGeneration   = 10000;
+let startingImage = 'gen6000i.png';
+let posterImage = 'gen6000i.png'; // posterized (reduced color) image
+
+// SETUP: Define colorCube[R][G][B]
+let colorCube = new Array(256);
+for (let r = 0; r < 256; r++) {
+    colorCube[r] = new Array(256);
+    for (let g = 0; g < 256; g++) {
+        colorCube[r][g] = new Array(256);
+        for (let b = 0; b < 256; b++) {
+            colorCube[r][g][b] = -1;
+        }
+    }
+}
+// SETUP: Set colorCube[r][g][b]
+let colorGroup = [];
+let colorGroupSize = 0;
+// SETUP: Read poster-image, set imageGroups[x][y] to group
+let imageGroups = [];
+Jimp.read(posterImage, function(err, image) {
+    if (err) {
+        throw err;
+    }
+    let width = image.bitmap.width;
+    let height = image.bitmap.height;
+    // SETUP: 2D array for poster-image
+    imageGroups = new Array(width);
+    for (let i = 0; i < width; i++) {
+        imageGroups[i] = new Array(height);
+    }
+    image.scan(0, 0, width, height, function (x, y, idx) {
+        let r = this.bitmap.data[idx];
+        let g = this.bitmap.data[idx + 1];
+        let b = this.bitmap.data[idx + 2];
+        if (colorCube[r][g][b] < 0) {
+            colorCube[r][g][b] = colorGroupSize++; // set group number to colorCube[r][b][g]
+        }
+        // NOTE: The same color may go into multiple color groups
+        console.log('x=' + x);
+        imageGroups[x][y] = colorCube[r][g][b]; // set group number to imageGroups[x][y]
+    });
+    // SETUP: colorGroup[]
+    colorGroup = new Array(colorGroupSize);
+    for (let i = 0; i < colorGroupSize; i++) {
+        colorGroup[i] = {
+            centerX: 0,
+            centerY: 0,
+            pixIndex: [],
+        }
+    }
+});
 
 Jimp.read(startingImage, function (err, image) {
     if (err) {
         throw err;
     }
-    // SETUP: colorGroup[] width and height
+    // SETUP: pix.vectors
     let width = image.bitmap.width;
     let height = image.bitmap.height;
     function getPixVectors(pix) {
@@ -144,31 +108,10 @@ Jimp.read(startingImage, function (err, image) {
             }
         }
     }
-    function findNearestColorGroup(R, G, B) {
-        let nearest = 99999;
-        let group = 0;
-        for (let i = 0; i < colors.length; i++) {
-            let r = R - colors[i].R;
-            let g = G - colors[i].G;
-            let b = B - colors[i].B;
-            let dist = r*r + g*g * b*b;
-            if (dist < nearest) {
-                nearest = dist;
-                group = colors[i].group;
-            }
-        }
-        return group;
-    }
     // SETUP: 2D array for image
     let img = new Array(width);
     for (let i = 0; i < width; i++) {
         img[i] = new Array(height);
-    }
-    // console.log('Init colorGroup array ' + colorGroup.length);
-    // SETUP: colorGroup[]
-    for (let i = 0; i < colorGroup.length; i++) {
-        colorGroup[i].center = { x: 0, y: 0 };
-        colorGroup[i].pixIndex = [];
     }
     // SETUP: vector match - define which vectors can swap pix's
     let vectorMatch = new Array(8);
@@ -196,17 +139,6 @@ Jimp.read(startingImage, function (err, image) {
         { x: -1, y:  0 }, // E
         { x: -1, y: -1 }, // NE
     ];
-    // SETUP: Define colorCube[R][G][B]
-    let colorCube = new Array(256);
-    for (let r = 0; r < 256; r++) {
-        colorCube[r] = new Array(256);
-        for (let g = 0; g < 256; g++) {
-            colorCube[r][g] = new Array(256);
-            for (let b = 0; b < 256; b++) {
-                colorCube[r][g][b] = -1;
-            }
-        }
-    }
     // Setup arrays img[][] and pix[] and colorGroup[].pixIndex[]
     let pixNum = 0;
     image.scan(0, 0, width, height, function (x, y, idx) {
@@ -214,8 +146,7 @@ Jimp.read(startingImage, function (err, image) {
         let G = this.bitmap.data[idx + 1];
         let B = this.bitmap.data[idx + 2];
         let A = this.bitmap.data[idx + 3];
-        let group = findNearestColorGroup(R, G, B);
-        colorCube[R][G][B] = group;
+        let group = imageGroups[x][y];
         img[x][y] = pixNum;
         pix[pixNum] = {
             R: R,
@@ -229,56 +160,19 @@ Jimp.read(startingImage, function (err, image) {
             vectorsUsed: 0, // most vectors allowed
             group: group, // index into array colorGroup[]
         };
-        // DEBUG: START: Check the color mapping by over-riding RGB with basic colors
-        if (debug) {
-            let g = getFirstColorInGroup(group);
-            pix[pixNum].R = g.R;
-            pix[pixNum].G = g.G;
-            pix[pixNum].B = g.B;
-        }
-        // DEBUG: END
         colorGroup[group].pixIndex.push(pixNum);
         pixNum++;
     });
-    // DEBUG: Output colorGroup[] to web page and colors of pixels in that color group
-    let html = '<table>';
-    for (let c = 0; c < colorGroup.length; c++) {
-        html += '<tr><td style="width:150px">' + colorGroup[c].name + '</td><td style="text-align:left">';
-        for (let h = 0; h < colorGroup[c].hex.length; h++) {
-            html += '<span style="background-color:#' + colorGroup[c].hex[h] + '">' + colorGroup[c].hex[h] + '</span>&nbsp;';
-        }
-        html += '</td></tr><tr><td colspan="2">';
-        for (r = 0; r < 256; r++) {
-            for (g = 0; g < 256; g++) {
-                for (b = 0; b < 256; b++) {
-                    if (colorCube[r][g][b] > -1) {
-                        let group = colorCube[r][g][b];
-                        if (group === c) {
-                            html += '<span style="background-color:rgba('+r+','+g+','+b+',255)">[&nbsp;]</span>';
-                        }
-                    }
-                }
-            }
-        }
-        html += '</td></tr>';
-    }
-    html += '</table>';
-    fs.writeFile("color-group.html", html, function(err) {
-        if(err) {
-            return console.log(err);
-        }
-        console.log("color-group.html file was saved!");
-    }); 
     // DEBUG: Output how many colors in each color group
-    for (let i = 0; i < colorGroup.length; i++) {
-        console.log('Color Group ' + i + ' name ' + colorGroup[i].name + ' has ' + colorGroup[i].pixIndex.length + ' pixels');
+    for (let i = 0; i < colorGroupSize; i++) {
+        console.log('Color Group ' + i + ' has ' + colorGroup[i].pixIndex.length + ' pixels');
     }
     // Iterate from startGeneration to endGeneration
     let lastAverageDistToCenter = Number.POSITIVE_INFINITY;
     let generation = startGeneration;
     while (generation <= endGeneration) {
         // Calculate center of each color group
-        for (let i = 0; i < colorGroup.length; i++) {
+        for (let i = 0; i < colorGroupSize; i++) {
             if (colorGroup[i].pixIndex.length > 0) {
                 let x = 0;
                 let y = 0;
@@ -290,10 +184,8 @@ Jimp.read(startingImage, function (err, image) {
                     y += p.y;
                 }
                 let div = 1 / count;
-                colorGroup[i].center = {
-                    x: Math.round(x * div),
-                    y: Math.round(y * div),
-                }
+                colorGroup[i].centerX = Math.round(x * div);
+                colorGroup[i].centerY = Math.round(y * div);
             }
         }
         // Calculate distance to color group center for each vector then sort by distance
@@ -308,8 +200,8 @@ Jimp.read(startingImage, function (err, image) {
                 for (let i = 0; i < v.length; i++) {
                     let x1 = v[i].x;
                     let y1 = v[i].y;
-                    let x2 = g.center.x;
-                    let y2 = g.center.y;
+                    let x2 = g.centerX;
+                    let y2 = g.centerY;
                     let x = x1 - x2;
                     let y = y1 - y2;
                     let d = x * x + y * y;
@@ -409,10 +301,10 @@ Jimp.read(startingImage, function (err, image) {
         }
         // DEBUG: Show color group center with blue pixels
         if (debug) {
-            for (let i = 0; i < colorGroup.length; i++) {
+            for (let i = 0; i < colorGroupSize; i++) {
                 if (colorGroup[i].pixIndex.length > 0) {
-                    let x = colorGroup[i].center.x;
-                    let y = colorGroup[i].center.y;
+                    let x = colorGroup[i].centerX;
+                    let y = colorGroup[i].centerY;
                     let hex = Jimp.rgbaToInt(0, 0, 255, 255);
                     image.setPixelColor(hex, x, y);
                 }
@@ -426,8 +318,8 @@ Jimp.read(startingImage, function (err, image) {
             let g = colorGroup[p.group];
             let x1 = p.x;
             let y1 = p.y;
-            let x2 = g.center.x;
-            let y2 = g.center.y;
+            let x2 = g.centerX;
+            let y2 = g.centerY;
             let x = x1 - x2;
             let y = y1 - y2;
             let d = x * x + y * y;
