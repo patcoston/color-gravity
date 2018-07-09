@@ -27,9 +27,9 @@ let Jimp = require('jimp');
 // SETTINGS
 let debug = false;
 let startGeneration = 1;
-let endGeneration   = 3;
-let startingImage = 'a.png';
-let posterImage = 'a.png'; // posterized (reduced color) image
+let endGeneration   = 10;
+let startImageName = 'a.png'; // first image to start
+let posterImageName = 'a.png'; // posterized (reduced color) image
 
 // SETUP: Define colorCube[R][G][B]
 let colorCube = new Array(256);
@@ -42,19 +42,17 @@ for (let r = 0; r < 256; r++) {
         }
     }
 }
-// SETUP: Set colorCube[r][g][b]
-let colorGroup = [];
-let colorGroupSize = 0;
-// SETUP: Read poster-image, set imageGroups[x][y] to group
-let imageGroups = [];
-Jimp.read(posterImage).then(function(image) {
+
+Jimp.read(posterImageName).then(function(image) {
     let width = image.bitmap.width;
     let height = image.bitmap.height;
     // SETUP: 2D array for poster-image
-    imageGroups = new Array(width);
+    let imageGroups = new Array(width);
     for (let i = 0; i < width; i++) {
         imageGroups[i] = new Array(height);
     }
+    // SETUP: Read poster-image, set colorCube[r][g][b] and imageGroups[x][y] to group
+    let colorGroupSize = 0;
     image.scan(0, 0, width, height, function (x, y, idx) {
         let r = this.bitmap.data[idx];
         let g = this.bitmap.data[idx + 1];
@@ -66,7 +64,7 @@ Jimp.read(posterImage).then(function(image) {
         imageGroups[x][y] = colorCube[r][g][b]; // set group number to imageGroups[x][y]
     });
     // SETUP: colorGroup[]
-    colorGroup = new Array(colorGroupSize);
+    let colorGroup = new Array(colorGroupSize);
     for (let i = 0; i < colorGroupSize; i++) {
         colorGroup[i] = {
             centerX: 0,
@@ -74,63 +72,13 @@ Jimp.read(posterImage).then(function(image) {
             pixIndex: [],
         }
     }
-
-    Jimp.read(startingImage).then(function (image) {
-        // SETUP: pix.vectors
-        let width = image.bitmap.width;
-        let height = image.bitmap.height;
-        function getPixVectors(pix) {
-            if (pix.vectorsUsed < 8) {
-                pix.vectorsUsed++;
-            }
-            pix.vectors = []; // reset vector array
-            for (let v = 0; v < 8; v++) {
-                let x = pix.x + dir[v].x;
-                let y = pix.y + dir[v].y;
-                // check for boundary
-                // corner pixel has 3 vectors
-                // side pixel has 5 vectors
-                if ((x >= 0) && (y >= 0) && (x < width) && (y < height)) {
-                    pix.vectors.push({
-                        x: x,
-                        y: y,
-                        dir: v, // direction: 0=N 1=NW 2=W 3=SW 4=S 5=SE 6=E 7=NE
-                        distToCenter: 0,
-                    });
-                }
-            }
-        }
-        // SETUP: 2D array for image
-        let img = new Array(width);
-        for (let i = 0; i < width; i++) {
-            img[i] = new Array(height);
-        }
-        // SETUP: vector match - define which vectors can swap pix's
-        let vectorMatch = new Array(8);
-        for (i = 0; i < 8; i++) {
-            vectorMatch[i] = [ false, false, false, false, false, false, false, false ];
-        }
-        vectorMatch[0][4] = true; // N-S
-        vectorMatch[1][5] = true; // NW-SE
-        vectorMatch[2][6] = true; // W-E
-        vectorMatch[3][7] = true; // SW-NE
-        vectorMatch[4][0] = true; // S-N
-        vectorMatch[5][1] = true; // SE-NW
-        vectorMatch[6][2] = true; // E-W
-        vectorMatch[7][3] = true; // NE-SW
-        let pix = new Array(width * height); // pixels
-        let pixOrder = new Array(width * height); // pixel order
-        // SETUP: directions for vectors
-        let dir = [
-            { x:  0, y: -1 }, // N
-            { x:  1, y: -1 }, // NW
-            { x:  1, y:  0 }, // W
-            { x:  1, y:  1 }, // SW
-            { x:  0, y:  1 }, // S
-            { x: -1, y:  1 }, // SE
-            { x: -1, y:  0 }, // E
-            { x: -1, y: -1 }, // NE
-        ];
+    // SETUP: 2D array for image
+    let img = new Array(width);
+    for (let i = 0; i < width; i++) {
+        img[i] = new Array(height);
+    }
+    let pix = new Array(width * height); // pixels
+    Jimp.read(startImageName).then(function (image) {
         // Setup arrays img[][] and pix[] and colorGroup[].pixIndex[]
         let pixNum = 0;
         image.scan(0, 0, width, height, function (x, y, idx) {
@@ -155,6 +103,54 @@ Jimp.read(posterImage).then(function(image) {
             colorGroup[group].pixIndex.push(pixNum);
             pixNum++;
         });
+
+        // SETUP: pix.vectors
+        function getPixVectors(pix) {
+            if (pix.vectorsUsed < 8) {
+                pix.vectorsUsed++;
+            }
+            pix.vectors = []; // reset vector array
+            for (let v = 0; v < 8; v++) {
+                let x = pix.x + dir[v].x;
+                let y = pix.y + dir[v].y;
+                // check for boundary
+                // corner pixel has 3 vectors
+                // side pixel has 5 vectors
+                if ((x >= 0) && (y >= 0) && (x < width) && (y < height)) {
+                    pix.vectors.push({
+                        x: x,
+                        y: y,
+                        dir: v, // direction: 0=N 1=NW 2=W 3=SW 4=S 5=SE 6=E 7=NE
+                        distToCenter: 0,
+                    });
+                }
+            }
+        }
+        // SETUP: vector match - define which vectors can swap pix's
+        let vectorMatch = new Array(8);
+        for (i = 0; i < 8; i++) {
+            vectorMatch[i] = [ false, false, false, false, false, false, false, false ];
+        }
+        vectorMatch[0][4] = true; // N-S
+        vectorMatch[1][5] = true; // NW-SE
+        vectorMatch[2][6] = true; // W-E
+        vectorMatch[3][7] = true; // SW-NE
+        vectorMatch[4][0] = true; // S-N
+        vectorMatch[5][1] = true; // SE-NW
+        vectorMatch[6][2] = true; // E-W
+        vectorMatch[7][3] = true; // NE-SW
+        let pixOrder = new Array(width * height); // pixel order
+        // SETUP: directions for vectors
+        let dir = [
+            { x:  0, y: -1 }, // N
+            { x:  1, y: -1 }, // NW
+            { x:  1, y:  0 }, // W
+            { x:  1, y:  1 }, // SW
+            { x:  0, y:  1 }, // S
+            { x: -1, y:  1 }, // SE
+            { x: -1, y:  0 }, // E
+            { x: -1, y: -1 }, // NE
+        ];
         // DEBUG: Output how many colors in each color group
         for (let i = 0; i < colorGroupSize; i++) {
             console.log('Color Group ' + i + ' has ' + colorGroup[i].pixIndex.length + ' pixels');
@@ -259,7 +255,7 @@ Jimp.read(posterImage).then(function(image) {
                                 }
                             }
                         }
-        
+
                     }
                 }
             }
@@ -329,5 +325,6 @@ Jimp.read(posterImage).then(function(image) {
             }
             generation++;
         }
+        
     });
 });
