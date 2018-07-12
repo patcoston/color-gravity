@@ -26,10 +26,11 @@ let Jimp = require('jimp');
 
 // SETTINGS
 let debug = false;
-let startGeneration = 1;
-let endGeneration   = 10;
-let startImageName = 'a.png'; // first image to start
-let posterImageName = 'a.png'; // posterized (reduced color) image
+let startGeneration =  6001;
+let endGeneration   =  12000;
+let startImageName = 'a8.png'; // first image to start
+let posterImageName = 'a8-poster.png'; // posterized (reduced color) image
+let prefix = 'straw';
 
 // SETUP: Define colorCube[R][G][B]
 let colorCube = new Array(256);
@@ -315,13 +316,17 @@ Jimp.read(posterImageName).then(function(image) {
                 averageDistToCenter += d;
             }
             averageDistToCenter = averageDistToCenter / pix.length;
+            let diff = averageDistToCenter-lastAverageDistToCenter;
+            let file = `${prefix}${generation}`;
             if (averageDistToCenter < lastAverageDistToCenter) {
+                file += 'i.png';
+                console.log(file + ' dist ' + averageDistToCenter + ' diff ' + diff + ' IMPROVED!');
                 lastAverageDistToCenter = averageDistToCenter;
-                console.log('GENERATION ' + generation + ' dist ' + averageDistToCenter + ' IMPROVED!');
-                newImage.write(`gen${generation}i.png`); // save
+                newImage.write(file); // save
             } else {
-                console.log('GENERATION ' + generation + ' dist ' + averageDistToCenter);
-                newImage.write(`gen${generation}x.png`); // save
+                file += 'x.png';
+                console.log(file + ' dist ' + averageDistToCenter + ' diff +' + diff);
+                newImage.write(file); // save
             }
             generation++;
         }
